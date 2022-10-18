@@ -2,12 +2,43 @@ import sqlite3
 
 from flask import Flask, jsonify, json, render_template, request, url_for, redirect, flash
 from werkzeug.exceptions import abort
+import logging
+from datetime import datetime
+
+@app.route('/healthz')
+def healthcheck():
+    response = app.response_class(
+            response=json.dumps({"result":"OK - healthy"}),
+            status=200,
+            mimetype='application/json'
+    )
+    app.logger.info('Status request successfull')
+    app.logger.debug('DEBUG message')
+    return response
+
+# Create variable containing number of access to db
+connectionCount = 0
+
+@app.route('/metrics')
+def metrics():
+    connection = get_db_connection()
+    posts_count = connection.execute('COUNT * FROM posts').fetchone()
+    connection.close()
+    response = app.response_class(
+            response=json.dumps({"status":"success","code":0,"data":{"db_connection_count": connectionCount, "post_count": post_count}),
+            status=200,
+            mimetype='application/json'
+    )
+    app.logger.info('Metrics request successfull')
+    return response
 
 # Function to get a database connection.
 # This function connects to database with the name `database.db`
+# The function has a counter for connections
 def get_db_connection():
     connection = sqlite3.connect('database.db')
     connection.row_factory = sqlite3.Row
+    connectionCount +=1
     return connection
 
 # Function to get a post using its ID
@@ -36,13 +67,16 @@ def index():
 def post(post_id):
     post = get_post(post_id)
     if post is None:
+      log_message('The article with the id "{post_id_in}" does not exists'.format(post_id_in=post_id))
       return render_template('404.html'), 404
     else:
+      log_message('The article "{title}" is retrieved'.format(title=post['title']))
       return render_template('post.html', post=post)
 
 # Define the About Us page
 @app.route('/about')
 def about():
+    log_message('About page is retrieved')
     return render_template('about.html')
 
 # Define the post creation functionality 
@@ -60,11 +94,16 @@ def create():
                          (title, content))
             connection.commit()
             connection.close()
-
+            log_message('New article is created. Title: "{title_in}"'.format(title_in=title))
             return redirect(url_for('index'))
 
     return render_template('create.html')
 
+#Every log line should include the timestamp and be outputted to the STDOUT
+def log_message(message_in):
+    app.logger.info('[{time}]:{message}'.format(
+        time=datetime.now().strftime("%d %b, %Y, %H:%M:%S"), message=message_in))
+                                 
 # start the application on port 3111
 if __name__ == "__main__":
    app.run(host='0.0.0.0', port='3111')
