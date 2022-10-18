@@ -35,7 +35,7 @@ jobs:
         name: Build and push
         uses: docker/build-push-action@v2
         with:
-          context: Kosmopy/nd064_course_1/project
+          context: https://github.com/Kosmopy/nd064_course_1/tree/main/project
           file: ./Dockerfile
           platforms: linux/amd64
           push: true
